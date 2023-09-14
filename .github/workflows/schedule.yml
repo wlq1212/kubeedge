@@ -97,11 +97,11 @@ jobs:
           - WebSocket
           - QUIC
         version:
-          - v1.24.0
-          - v1.23.0
-          - v1.22.0
-          - v1.21.0
-          - v1.20.0
+          - v1.24.7
+          - v1.23.13
+          - v1.22.15
+          - v1.21.17
+          - v1.20.15
     timeout-minutes: 60
     name: E2e k8s compatibility test
     needs: image-prepare

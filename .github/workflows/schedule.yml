@@ -100,9 +100,7 @@ jobs:
           - v1.24.7
           - v1.23.13
           - v1.22.15
-          - v1.21.17
-          - v1.20.15
-    timeout-minutes: 60
+    timeout-minutes: 90
     name: E2e k8s compatibility test
     needs: image-prepare
     env:

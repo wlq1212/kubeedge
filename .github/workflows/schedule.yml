@@ -2,7 +2,7 @@ name: SCHEDULED
 on:
   workflow_dispatch:
   schedule:
-    - cron = '0 30 ? * 4'
+    - cron = "40 * * * *"
 
 env:
   CONTAINER_RUN_OPTIONS: " "

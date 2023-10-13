@@ -170,6 +170,15 @@ func newEdged(enable bool, nodeName, namespace string) (*edged, error) {
 		KubeletFlags:         kubeletFlags,
 		KubeletConfiguration: kubeletConfig,
 	}
+
+	if kubeletConfig.StaticPodPath != "" {
+		if err := os.MkdirAll(kubeletConfig.StaticPodPath, os.ModePerm); err != nil {
+			return nil, fmt.Errorf("create %s static pod path failed: %v", kubeletConfig.StaticPodPath, err)
+		}
+	} else {
+		klog.ErrorS(err, "static pod path is nil!")
+	}
+
 	nodestatus.KubeletVersion = fmt.Sprintf("%s-kubeedge-%s", constants.CurrentSupportK8sVersion, version.Get())
 	// use kubeletServer to construct the default KubeletDeps
 	kubeletDeps, err := DefaultKubeletDeps(&kubeletServer, utilfeature.DefaultFeatureGate)
@@ -302,15 +311,16 @@ func (e *edged) handlePod(op string, content []byte, updatesChan chan<- interfac
 	pods = append(pods, &pod)
 
 	if filterPodByNodeName(&pod, e.nodeName) {
+		var podOp kubelettypes.PodOperation
 		switch op {
-		case model.InsertOperation:
-			klog.V(4).InfoS("Receive message of adding new pods", "pods", klog.KObjs(pods))
-		case model.UpdateOperation:
-			klog.V(4).InfoS("Receive message of updating pods", "pods", klog.KObjs(pods))
+		case model.InsertOperation, model.UpdateOperation:
+			klog.V(4).InfoS("Receive message of add/update pods", "operation", op, "pods", klog.KObjSlice(pods))
+			podOp = kubelettypes.UPDATE
 		case model.DeleteOperation:
-			klog.V(4).InfoS("Receive message of deleting pods", "pods", klog.KObjs(pods))
+			klog.V(4).InfoS("Receive message of deleting pods", "pods", klog.KObjSlice(pods))
+			podOp = kubelettypes.REMOVE
 		}
-		updates := &kubelettypes.PodUpdate{Op: kubelettypes.UPDATE, Pods: pods, Source: kubelettypes.ApiserverSource}
+		updates := &kubelettypes.PodUpdate{Op: podOp, Pods: pods, Source: kubelettypes.ApiserverSource}
 		updatesChan <- *updates
 	}
 

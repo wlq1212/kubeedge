@@ -33,17 +33,10 @@ const (
 )
 
 const (
-	CGroupDriverCGroupFS = "cgroupfs"
-	CGroupDriverSystemd  = "systemd"
-)
-
-const (
 	// DataBaseDriverName is sqlite3
 	DataBaseDriverName = "sqlite3"
 	// DataBaseAliasName is default
 	DataBaseAliasName = "default"
-	// DataBaseDataSource is edge.db
-	DataBaseDataSource = "/var/lib/kubeedge/edgecore.db"
 )
 
 type ProtocolName string
@@ -703,6 +696,11 @@ type TailoredKubeletConfiguration struct {
 	// Default: true
 	// +optional
 	RegisterNode *bool `json:"registerNode,omitempty"`
+	// staticPodPath is the path to the directory containing local (static) pods to
+	// run, or the path to a single static pod file.
+	// Default: "/etc/kubeedge/manifests"
+	// +optional
+	StaticPodPath string `json:"staticPodPath,omitempty"`
 }
 
 // TailoredKubeletFlag indicates the tailored kubelet flag

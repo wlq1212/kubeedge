@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	phases "k8s.io/kubernetes/cmd/kubeadm/app/cmd/phases/reset"
@@ -90,6 +91,24 @@ func NewKubeEdgeReset() *cobra.Command {
 					return fmt.Errorf("aborted reset operation")
 				}
 			}
+
+			// first cleanup edge node static pod directory to stop static and mirror pod
+			if isEdgeNode {
+				config, err := util.ParseEdgecoreConfig(common.EdgecoreConfigPath)
+				if err != nil {
+					return err
+				}
+				dir := config.Modules.Edged.TailoredKubeletConfig.StaticPodPath
+				if dir != "" {
+					if err := phases.CleanDir(dir); err != nil {
+						fmt.Printf("Failed to delete static pod directory %s: %v\n", dir, err)
+					} else {
+						time.Sleep(1 * time.Second)
+						fmt.Printf("Static pod directory has been removed!\n")
+					}
+				}
+			}
+
 			// 1. kill cloudcore/edgecore process.
 			// For edgecore, don't delete node from K8S
 			if err := TearDownKubeEdge(isEdgeNode, reset.Kubeconfig); err != nil {
@@ -107,7 +126,7 @@ func NewKubeEdgeReset() *cobra.Command {
 			}
 
 			// cleanup mqtt container
-			if err := RemoveMqttContainer(reset.RuntimeType, reset.Endpoint); err != nil {
+			if err := RemoveMqttContainer(reset.RuntimeType, reset.Endpoint, ""); err != nil {
 				fmt.Printf("Failed to remove MQTT container: %v\n", err)
 			}
 			//4. TODO: clean status information
@@ -120,8 +139,8 @@ func NewKubeEdgeReset() *cobra.Command {
 	return cmd
 }
 
-func RemoveMqttContainer(runtimeType string, endpoint string) error {
-	runtime, err := util.NewContainerRuntime(runtimeType, endpoint)
+func RemoveMqttContainer(runtimeType, endpoint, cgroupDriver string) error {
+	runtime, err := util.NewContainerRuntime(runtimeType, endpoint, cgroupDriver)
 	if err != nil {
 		return fmt.Errorf("failed to new container runtime: %v", err)
 	}

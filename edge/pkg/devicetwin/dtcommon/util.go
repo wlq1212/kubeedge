@@ -4,15 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	"k8s.io/klog/v2"
 
 	"github.com/kubeedge/kubeedge/cloud/pkg/devicecontroller/constants"
-	"github.com/kubeedge/kubeedge/pkg/apis/devices/v1alpha2"
-	pb "github.com/kubeedge/kubeedge/pkg/apis/dmi/v1alpha1"
+	"github.com/kubeedge/kubeedge/pkg/apis/devices/v1beta1"
+	pb "github.com/kubeedge/kubeedge/pkg/apis/dmi/v1beta1"
 )
 
 // ValidateValue validate value type
@@ -61,23 +64,7 @@ func ValidateTwinValue(value string) bool {
 	return match
 }
 
-func GetProtocolNameOfDevice(device *v1alpha2.Device) (string, error) {
-	protocol := device.Spec.Protocol
-	if protocol.OpcUA != nil {
-		return constants.OPCUA, nil
-	}
-	if protocol.Modbus != nil {
-		return constants.Modbus, nil
-	}
-	if protocol.Bluetooth != nil {
-		return constants.Bluetooth, nil
-	}
-	if protocol.CustomizedProtocol != nil {
-		return protocol.CustomizedProtocol.ProtocolName, nil
-	}
-	return "", fmt.Errorf("cannot find protocol name for device %s", device.Name)
-}
-func ConvertDevice(device *v1alpha2.Device) (*pb.Device, error) {
+func ConvertDevice(device *v1beta1.Device) (*pb.Device, error) {
 	data, err := json.Marshal(device)
 	if err != nil {
 		klog.Errorf("fail to marshal device %s with err: %v", device.Name, err)
@@ -90,14 +77,54 @@ func ConvertDevice(device *v1alpha2.Device) (*pb.Device, error) {
 		klog.Errorf("fail to unmarshal device %s with err: %v", device.Name, err)
 		return nil, err
 	}
+	if device.Spec.Protocol.ConfigData != nil {
+		// interface data to anypb.Any data
+		configAnyData := make(map[string]*anypb.Any)
+		for k, v := range device.Spec.Protocol.ConfigData.Data {
+			anyValue, err := dataToAny(v)
+			if err != nil {
+				return nil, err
+			}
+			configAnyData[k] = anyValue
+		}
+		edgeDevice.Spec.Protocol.ConfigData.Data = configAnyData
+	}
+	var edgePropertyVisitors []*pb.DeviceProperty
+	for i := range device.Spec.Properties {
+		var item *pb.DeviceProperty = new(pb.DeviceProperty)
+		propertyData, err := json.Marshal(device.Spec.Properties[i])
+		if err != nil {
+			klog.Errorf("fail to marshal device %s with err: %v", device.Name, err)
+			return nil, err
+		}
+		err = json.Unmarshal(propertyData, item)
+		if err != nil {
+			klog.Errorf("fail to unmarshal device %s with err: %v", device.Name, err)
+			return nil, err
+		}
 
+		if device.Spec.Properties[i].Visitors.ConfigData != nil {
+			configAnyData := make(map[string]*anypb.Any)
+			for k, v := range device.Spec.Properties[i].Visitors.ConfigData.Data {
+				anyValue, err := dataToAny(v)
+				if err != nil {
+					return nil, err
+				}
+				configAnyData[k] = anyValue
+			}
+			item.Visitors.ConfigData.Data = configAnyData
+		}
+		edgePropertyVisitors = append(edgePropertyVisitors, item)
+	}
+
+	edgeDevice.Spec.Properties = edgePropertyVisitors
 	edgeDevice.Name = device.Name
 	edgeDevice.Spec.DeviceModelReference = device.Spec.DeviceModelRef.Name
 
 	return &edgeDevice, nil
 }
 
-func ConvertDeviceModel(model *v1alpha2.DeviceModel) (*pb.DeviceModel, error) {
+func ConvertDeviceModel(model *v1beta1.DeviceModel) (*pb.DeviceModel, error) {
 	data, err := json.Marshal(model)
 	if err != nil {
 		klog.Errorf("fail to marshal device model %s with err: %v", model.Name, err)
@@ -113,4 +140,83 @@ func ConvertDeviceModel(model *v1alpha2.DeviceModel) (*pb.DeviceModel, error) {
 	edgeDeviceModel.Name = model.Name
 
 	return &edgeDeviceModel, nil
+}
+
+func dataToAny(v interface{}) (*anypb.Any, error) {
+	switch m := v.(type) {
+	case string:
+		strWrapper := wrapperspb.String(m)
+		anyStr, err := anypb.New(strWrapper)
+		if err != nil {
+			klog.Errorf("anypb new error: %v", err)
+			return nil, err
+		}
+		return anyStr, nil
+	case int8:
+		intWrapper := wrapperspb.Int32(int32(m))
+		anyInt, err := anypb.New(intWrapper)
+		if err != nil {
+			klog.Errorf("anypb new error: %v", err)
+			return nil, err
+		}
+		return anyInt, nil
+	case int16:
+		intWrapper := wrapperspb.Int32(int32(m))
+		anyInt, err := anypb.New(intWrapper)
+		if err != nil {
+			klog.Errorf("anypb new error: %v", err)
+			return nil, err
+		}
+		return anyInt, nil
+	case int32:
+		intWrapper := wrapperspb.Int32(m)
+		anyInt, err := anypb.New(intWrapper)
+		if err != nil {
+			klog.Errorf("anypb new error: %v", err)
+			return nil, err
+		}
+		return anyInt, nil
+	case int64:
+		intWrapper := wrapperspb.Int64(m)
+		anyInt, err := anypb.New(intWrapper)
+		if err != nil {
+			klog.Errorf("anypb new error: %v", err)
+			return nil, err
+		}
+		return anyInt, nil
+	case int:
+		intWrapper := wrapperspb.Int32(int32(m))
+		anyInt, err := anypb.New(intWrapper)
+		if err != nil {
+			klog.Errorf("anypb new error: %v", err)
+			return nil, err
+		}
+		return anyInt, nil
+	case float64:
+		floatWrapper := wrapperspb.Float(float32(m))
+		anyFloat, err := anypb.New(floatWrapper)
+		if err != nil {
+			klog.Errorf("anypb new error: %v", err)
+			return nil, err
+		}
+		return anyFloat, nil
+	case float32:
+		floatWrapper := wrapperspb.Float(float32(m))
+		anyFloat, err := anypb.New(floatWrapper)
+		if err != nil {
+			klog.Errorf("anypb new error: %v", err)
+			return nil, err
+		}
+		return anyFloat, nil
+	case bool:
+		boolWrapper := wrapperspb.Bool(m)
+		anyBool, err := anypb.New(boolWrapper)
+		if err != nil {
+			klog.Errorf("anypb new error: %v", err)
+			return nil, err
+		}
+		return anyBool, nil
+	default:
+		return nil, fmt.Errorf("%v does not support converting to any", reflect.TypeOf(v))
+	}
 }

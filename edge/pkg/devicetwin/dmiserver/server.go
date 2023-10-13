@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The KubeEdge Authors.
+Copyright 2023 The KubeEdge Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"os"
 	"sync"
 	"time"
 
@@ -41,17 +40,17 @@ import (
 	"github.com/kubeedge/kubeedge/edge/pkg/devicetwin/dmiclient"
 	"github.com/kubeedge/kubeedge/edge/pkg/devicetwin/dtcommon"
 	"github.com/kubeedge/kubeedge/edge/pkg/metamanager/dao"
-	"github.com/kubeedge/kubeedge/pkg/apis/devices/v1alpha2"
-	pb "github.com/kubeedge/kubeedge/pkg/apis/dmi/v1alpha1"
+	"github.com/kubeedge/kubeedge/pkg/apis/devices/v1beta1"
+	pb "github.com/kubeedge/kubeedge/pkg/apis/dmi/v1beta1"
 )
 
 const (
-	SockPath = "/etc/kubeedge/dmi.sock"
-	Limit    = 1000
-	Burst    = 100
+	Limit = 1000
+	Burst = 100
 )
 
 type server struct {
+	pb.UnimplementedDeviceManagerServiceServer
 	limiter  *rate.Limiter
 	dmiCache *DMICache
 }
@@ -61,8 +60,8 @@ type DMICache struct {
 	DeviceMu        *sync.Mutex
 	DeviceModelMu   *sync.Mutex
 	MapperList      map[string]*pb.MapperInfo
-	DeviceModelList map[string]*v1alpha2.DeviceModel
-	DeviceList      map[string]*v1alpha2.Device
+	DeviceModelList map[string]*v1beta1.DeviceModel
+	DeviceList      map[string]*v1beta1.Device
 }
 
 func (s *server) MapperRegister(ctx context.Context, in *pb.MapperRegisterRequest) (*pb.MapperRegisterResponse, error) {
@@ -94,11 +93,7 @@ func (s *server) MapperRegister(ctx context.Context, in *pb.MapperRegisterReques
 	s.dmiCache.DeviceMu.Lock()
 	defer s.dmiCache.DeviceMu.Unlock()
 	for _, device := range s.dmiCache.DeviceList {
-		protocol, err := dtcommon.GetProtocolNameOfDevice(device)
-		if err != nil {
-			klog.Errorf("fail to get protocol name with err: %+v", err)
-			continue
-		}
+		protocol := device.Spec.Protocol.ProtocolName
 
 		if protocol == in.Mapper.Protocol {
 			dev, err := dtcommon.ConvertDevice(device)
@@ -137,13 +132,7 @@ func (s *server) ReportDeviceStatus(ctx context.Context, in *pb.ReportDeviceStat
 	}
 
 	for _, twin := range in.ReportedDevice.Twins {
-		propertyType, ok := twin.Reported.Metadata[PropertyType]
-		if !ok {
-			errLog := fmt.Sprintf("fail to get propertyType for property %s of device %s", twin.PropertyName, in.DeviceName)
-			klog.Errorf(errLog)
-			return nil, fmt.Errorf(errLog)
-		}
-		msg, err := CreateMessageTwinUpdate(twin.PropertyName, propertyType, twin.Reported.Value)
+		msg, err := CreateMessageTwinUpdate(twin)
 		if err != nil {
 			klog.Errorf("fail to create message data for property %s of device %s with err: %v", twin.PropertyName, in.DeviceName, err)
 			return nil, err
@@ -166,33 +155,17 @@ func handleDeviceTwin(deviceName string, payload []byte) {
 }
 
 // CreateMessageTwinUpdate create twin update message.
-func CreateMessageTwinUpdate(name, valueType, value string) ([]byte, error) {
+func CreateMessageTwinUpdate(twin *pb.Twin) ([]byte, error) {
 	var updateMsg DeviceTwinUpdate
 
 	updateMsg.BaseMessage.Timestamp = getTimestamp()
 	updateMsg.Twin = map[string]*types.MsgTwin{}
-	updateMsg.Twin[name] = &types.MsgTwin{}
-	updateMsg.Twin[name].Actual = &types.TwinValue{Value: &value}
-	updateMsg.Twin[name].Metadata = &types.TypeMetadata{Type: valueType}
+	updateMsg.Twin[twin.PropertyName] = &types.MsgTwin{}
+	updateMsg.Twin[twin.PropertyName].Expected = &types.TwinValue{Value: &twin.ObservedDesired.Value}
+	updateMsg.Twin[twin.PropertyName].Actual = &types.TwinValue{Value: &twin.Reported.Value}
 
 	msg, err := json.Marshal(updateMsg)
 	return msg, err
-}
-
-func initSock(sockPath string) error {
-	klog.Infof("init uds socket: %s", sockPath)
-	_, err := os.Stat(sockPath)
-	if err == nil {
-		err = os.Remove(sockPath)
-		if err != nil {
-			return err
-		}
-		return nil
-	} else if os.IsNotExist(err) {
-		return nil
-	} else {
-		return fmt.Errorf("fail to stat uds socket path")
-	}
 }
 
 func StartDMIServer(cache *DMICache) {

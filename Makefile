@@ -336,7 +336,7 @@ keadm_compatibility_e2e:
 	@echo "KEADM_COMPATIBILITY_E2E_HELP_INFO"
 else
 keadm_compatibility_e2e:
-	tests/scripts/keadm_compatibility_e2e.sh ${CLOUDCORE_IMAGE} ${EDGECORE_IMAGE}
+	tests/scripts/keadm_compatibility_e2e.sh ${EDGECORE_IMAGE}
 endif
 
 define CLEAN_HELP_INFO

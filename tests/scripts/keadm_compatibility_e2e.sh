@@ -137,7 +137,7 @@ echo -e "\nPreparing cluster..."
 prepare_cluster
 
 echo -e "\nGet cloudcore image..."
-get_cloudcore_image
+build_image
 
 echo -e "\nGet edgecore image..."
 get_edgecore_image

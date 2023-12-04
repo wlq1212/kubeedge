@@ -18,8 +18,8 @@ KUBEEDGE_ROOT=$PWD
 WORKDIR=$(dirname $0)
 E2E_DIR=$(realpath $(dirname $0)/..)
 IMAGE_TAG=$(git describe --tags)
-CLOUDCORE_VERSION=${1:-"1.14.2"}
-EDGECORE_VRRSION=${1:-"1.14.2"}
+EDGECORE_VRRSION=${1:-"1.15.1"}
+KUBEEDGE_VERSION=$IMAGE_TAG
 
 source "${KUBEEDGE_ROOT}/hack/lib/install.sh"
 
@@ -49,7 +49,16 @@ function prepare_cluster() {
 
 function build_image() {
   cd $KUBEEDGE_ROOT
+  make image WHAT=cloudcore -f $KUBEEDGE_ROOT/Makefile
   make image WHAT=installation-package -f $KUBEEDGE_ROOT/Makefile
+  # convert docker images to cri image, or cri runtime cannot identify the image that already existed on the local host
+  echo "save docker images to cri images"
+  docker save kubeedge/cloudcore:$IMAGE_TAG > cloudcore.tar
+  docker save kubeedge/installation-package:$IMAGE_TAG > installation-package.tar
+  sudo ctr -n=k8s.io image import cloudcore.tar
+  sudo ctr -n=k8s.io image import installation-package.tar
+  # load image to test cluster
+  kind load docker-image docker.io/kubeedge/cloudcore:$IMAGE_TAG --name test
   kind load docker-image docker.io/kubeedge/installation-package:$IMAGE_TAG --name test
 
   set +e
@@ -58,24 +67,11 @@ function build_image() {
   set -Ee
 }
 
-function get_cloudcore_image() {
-   docker pull kubeedge/cloudcore:$CLOUDCORE_VERSION
-   docker save kubeedge/cloudcore:$CLOUDCORE_VERSION > cloudcore.tar
-   kind load docker-image kubeedge/cloudcore:$CLOUDCORE_VERSION --name test
-
-   set +e
-   docker rmi $(docker images -f "dangling=true" -q)
-   docker system prune -f
-   set -Ee
-
-}
-
 function get_edgecore_image() {
    docker run --rm kubeedge/installation-package:$EDGECORE_VRRSION cat /usr/local/bin/keadm > /usr/local/bin/edgeadm && chmod +x /usr/local/bin/edgeadm
 
    set +e
    docker rmi $(docker images -f "dangling=true" -q)
-   docker system prune -f
    set -Ee
 
 }
@@ -87,7 +83,7 @@ function start_kubeedge() {
   export KUBECONFIG=$HOME/.kube/config
   docker run --rm kubeedge/installation-package:$IMAGE_TAG cat /usr/local/bin/keadm > /usr/local/bin/keadm && chmod +x /usr/local/bin/keadm
 
-  /usr/local/bin/keadm init --advertise-address=$MASTER_IP --profile version=$CLOUDCORE_VERSION --set cloudCore.service.enable=false --kube-config=$KUBECONFIG --force
+  /usr/local/bin/keadm init --advertise-address=$MASTER_IP --profile version=$KUBEEDGE_VERSION --set cloudCore.service.enable=false --kube-config=$KUBECONFIG --force
 
   # ensure tokensecret is generated
   while true; do

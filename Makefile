@@ -334,7 +334,7 @@ define KEADM_COMPATIBILITY_E2E_HELP_INFO
 # eadm e2e test.
 #
 # Example:
-#   make keadm_compatibility-e2e
+#   make keadm_compatibility_e2e
 #   make keadm_compatibility_e2e HELP=y
 #
 endef

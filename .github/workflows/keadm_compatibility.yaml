@@ -136,6 +136,5 @@ jobs:
         run: docker system prune -a -f
 
       - run: |
-          export PROTOCOL=${{ matrix.protocol }}
           export EDGECORE_IMAGE=${{ matrix.version }}
           make keadm_compatibility_e2e

@@ -18,8 +18,8 @@ KUBEEDGE_ROOT=$PWD
 WORKDIR=$(dirname $0)
 E2E_DIR=$(realpath $(dirname $0)/..)
 IMAGE_TAG=$(git describe --tags)
-CLOUDCORE_VERSION=${1:-"1.14.2"}
-EDGECORE_VRRSION=${1:-"1.14.2"}
+CLOUDCORE_VERSION=${1:-"1.15.1"}
+EDGECORE_VRRSION=${1:-"1.15.1"}
 
 source "${KUBEEDGE_ROOT}/hack/lib/install.sh"
 

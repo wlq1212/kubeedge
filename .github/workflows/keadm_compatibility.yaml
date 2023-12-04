@@ -1,4 +1,4 @@
-name: SCHEDULED
+name: KEAMD COMPATIBILITY
 on:
   workflow_dispatch:
   schedule:

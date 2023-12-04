@@ -330,6 +330,14 @@ keadm_e2e:
 	tests/scripts/keadm_e2e.sh
 endif
 
+define KEADM_COMPATIBILITY_E2E_HELP_INFO
+# eadm e2e test.
+#
+# Example:
+#   make keadm_compatibility-e2e
+#   make keadm_compatibility_e2e HELP=y
+#
+endef
 .PHONY: keadm_compatibility_e2e
 ifeq ($(HELP),y)
 keadm_compatibility_e2e:

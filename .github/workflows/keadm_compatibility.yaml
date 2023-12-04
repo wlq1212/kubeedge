@@ -137,5 +137,5 @@ jobs:
 
       - run: |
           export PROTOCOL=${{ matrix.protocol }}
-          export EDGECORE_IMAGE=kindest/node:${{ matrix.version }}
-          make keadm_compatibiity_e2e
+          export EDGECORE_IMAGE=${{ matrix.version }}
+          make keadm_compatibility_e2e

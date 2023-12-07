@@ -10,85 +10,6 @@ env:
   GINKGO_VERSION: "v2.9.5"
 
 jobs:
-  lint:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
-    name: lint
-    env:
-      GOPATH: /home/runner/work/${{ github.repository }}
-    steps:
-      - name: Install Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.20.x
-
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          path: ./src/github.com/${{ github.repository }}
-
-      - uses: actions/cache@v3
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-
-      - name: Install dependences
-        run: |
-          sudo apt-get install -y jq
-
-  image-prepare:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
-    name: Prepare kubeedge/build-tools image
-    steps:
-      - name: Pull kubeedge/build-tools image
-        run: |
-          docker pull kubeedge/build-tools:1.20.10-ke1
-          mkdir -p /home/runner/build-tools/
-          docker save kubeedge/build-tools:1.20.10-ke1 > /home/runner/build-tools/build-tools.tar
-
-      - name: Temporarily save kubeedge/build-tools image
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-tools-docker-artifact
-          path: /home/runner/build-tools
-
-  build:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
-    name: Multiple build
-    needs: image-prepare
-    steps:
-      - uses: actions/cache@v3
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Retrieve saved kubeedge/build-tools image
-        uses: actions/download-artifact@v3
-        with:
-          name: build-tools-docker-artifact
-          path: /home/runner/build-tools
-
-      - name: docker load kubeedge/build-tools image
-        run: |
-          docker load < /home/runner/build-tools/build-tools.tar
-
-      - run: make
-
-      - run: make smallbuild
-
-      - run: make crossbuild
-
-      - run: make crossbuild ARM_VERSION=GOARM7
-
-      - run: make crossbuild WHAT=cloudcore ARM_VERSION=GOARM8
 
   keadm_compatibility_e2e_test:
     runs-on: ubuntu-22.04
@@ -136,5 +57,6 @@ jobs:
         run: docker system prune -a -f
 
       - run: |
-          export EDGECORE_IMAGE=${{ matrix.version }}
+          export CLOUD_EDGE_VERSION=${{ matrix.version }}
           make keadm_compatibility_e2e
+

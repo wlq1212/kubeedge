@@ -66,6 +66,7 @@ function get_cloudcore_image() {
 #   sudo ctr -n=k8s.io image import cloudcore.tar
    kind load docker-image docker.io/kubeedge/cloudcore:$CLOUDCORE_VERSION --name test
 
+
    set +e
    docker rmi $(docker images -f "dangling=true" -q)
    docker system prune -f

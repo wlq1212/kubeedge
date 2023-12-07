@@ -64,7 +64,6 @@ function get_cloudcore_image() {
    docker tag kubeedge/cloudcore:$CLOUD_EDGE_VERSION docker.io/kubeedge/cloudcore:$CLOUD_EDGE_VERSION
 #   docker save kubeedge/cloudcore:$CLOUDCORE_VERSION > cloudcore.tar
 #   sudo ctr -n=k8s.io image import cloudcore.tar
-
    kind load docker-image docker.io/kubeedge/cloudcore:$CLOUD_EDGE_VERSION --name test
 
    set +e

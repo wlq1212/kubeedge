@@ -145,7 +145,6 @@ prepare_cluster
 echo -e "\nBuilding keadm image..."
 build_image
 
-
 echo -e "\nGet cloudcore image..."
 get_cloudcore_image
 

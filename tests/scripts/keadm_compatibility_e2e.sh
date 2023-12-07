@@ -62,8 +62,8 @@ function build_image() {
 function get_cloudcore_image() {
    docker pull kubeedge/cloudcore:$CLOUD_EDGE_VERSION
    docker tag kubeedge/cloudcore:$CLOUD_EDGE_VERSION docker.io/kubeedge/cloudcore:$CLOUD_EDGE_VERSION
-#   docker save kubeedge/cloudcore:$CLOUDCORE_VERSION > cloudcore.tar
-#   sudo ctr -n=k8s.io image import cloudcore.tar
+   docker save kubeedge/cloudcore:$CLOUD_EDGE_VERSION > cloudcore.tar
+   sudo ctr -n=k8s.io image import cloudcore.tar
    kind load docker-image docker.io/kubeedge/cloudcore:$CLOUD_EDGE_VERSION --name test
 
    set +e
@@ -88,9 +88,7 @@ function start_kubeedge() {
   export MASTER_IP=`kubectl get node test-control-plane -o jsonpath={.status.addresses[0].address}`
   export KUBECONFIG=$HOME/.kube/config
   docker run --rm kubeedge/installation-package:$IMAGE_TAG cat /usr/local/bin/keadm > /usr/local/bin/keadm && chmod +x /usr/local/bin/keadm
-
-  /usr/local/bin/keadm init --advertise-address=$MASTER_IP --profile version=$CLOUD_EDGE_VERSION--set cloudCore.service.enable=false --kube-config=$KUBECONFIG --force
-
+  /usr/local/bin/keadm init --advertise-address=$MASTER_IP --profile version=$CLOUD_EDGE_VERSION --set cloudCore.service.enable=false --kube-config=$KUBECONFIG --force
 
   # ensure tokensecret is generated
   while true; do
@@ -101,7 +99,8 @@ function start_kubeedge() {
   cd $KUBEEDGE_ROOT
   export TOKEN=$(sudo /usr/local/bin/keadm gettoken --kube-config=$KUBECONFIG)
   sudo systemctl set-environment CHECK_EDGECORE_ENVIRONMENT="false"
-  sudo -E CHECK_EDGECORE_ENVIRONMENT="false" /usr/local/bin/edgeadm join --token=$TOKEN --cloudcore-ipport=$MASTER_IP:10000 --edgenode-name=edge-node --kubeedge-version=$CLOUD_EDGE_VERSION
+  sudo /usr/local/bin/edgeadm join --token=$TOKEN --cloudcore-ipport=$MASTER_IP:10000 --edgenode-name=edge-node --kubeedge-version=$KUBEEDGE_VERSION
+
 
   # ensure edgenode is ready
   while true; do

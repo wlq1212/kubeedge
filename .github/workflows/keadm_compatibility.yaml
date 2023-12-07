@@ -58,5 +58,5 @@ jobs:
 
       - run: |
           export CLOUD_EDGE_VERSION=kindest/node:${{ matrix.version }}
-          make keadm_compatibiity_e2e
+          make keadm_compatibility_e2e
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright 2021 The KubeEdge Authors.
+# Copyright 2023 The KubeEdge Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ KUBEEDGE_ROOT=$PWD
 WORKDIR=$(dirname $0)
 E2E_DIR=$(realpath $(dirname $0)/..)
 IMAGE_TAG=$(git describe --tags)
-EDGECORE_VRRSION=${1:-"1.15.1"}
-KUBEEDGE_VERSION=$IMAGE_TAG
+CLOUD_EDGE_VERSION=${1:-"v1.15.1"}
+
 
 source "${KUBEEDGE_ROOT}/hack/lib/install.sh"
 
@@ -49,26 +49,33 @@ function prepare_cluster() {
 
 function build_image() {
   cd $KUBEEDGE_ROOT
-  make image WHAT=cloudcore -f $KUBEEDGE_ROOT/Makefile
   make image WHAT=installation-package -f $KUBEEDGE_ROOT/Makefile
-  # convert docker images to cri image, or cri runtime cannot identify the image that already existed on the local host
-  echo "save docker images to cri images"
-  docker save kubeedge/cloudcore:$IMAGE_TAG > cloudcore.tar
   docker save kubeedge/installation-package:$IMAGE_TAG > installation-package.tar
-  sudo ctr -n=k8s.io image import cloudcore.tar
   sudo ctr -n=k8s.io image import installation-package.tar
-  # load image to test cluster
-  kind load docker-image docker.io/kubeedge/cloudcore:$IMAGE_TAG --name test
   kind load docker-image docker.io/kubeedge/installation-package:$IMAGE_TAG --name test
 
   set +e
   docker rmi $(docker images -f "dangling=true" -q)
-  docker system prune -f
   set -Ee
 }
 
+function get_cloudcore_image() {
+   docker pull kubeedge/cloudcore:$CLOUD_EDGE_VERSION
+   docker tag kubeedge/cloudcore:$CLOUD_EDGE_VERSION docker.io/kubeedge/cloudcore:$CLOUD_EDGE_VERSION
+   docker save kubeedge/cloudcore:$CLOUD_EDGE_VERSION > cloudcore.tar
+   sudo ctr -n=k8s.io image import cloudcore.tar
+
+   kind load docker-image docker.io/kubeedge/cloudcore:$CLOUD_EDGE_VERSION --name test
+
+   set +e
+   docker rmi $(docker images -f "dangling=true" -q)
+   docker system prune -f
+   set -Ee
+
+}
+
 function get_edgecore_image() {
-   docker run --rm kubeedge/installation-package:$EDGECORE_VRRSION cat /usr/local/bin/keadm > /usr/local/bin/edgeadm && chmod +x /usr/local/bin/edgeadm
+   docker run --rm kubeedge/installation-package:$CLOUD_EDGE_VERSION cat /usr/local/bin/keadm > /usr/local/bin/edgeadm && chmod +x /usr/local/bin/edgeadm
 
    set +e
    docker rmi $(docker images -f "dangling=true" -q)
@@ -82,8 +89,7 @@ function start_kubeedge() {
   export MASTER_IP=`kubectl get node test-control-plane -o jsonpath={.status.addresses[0].address}`
   export KUBECONFIG=$HOME/.kube/config
   docker run --rm kubeedge/installation-package:$IMAGE_TAG cat /usr/local/bin/keadm > /usr/local/bin/keadm && chmod +x /usr/local/bin/keadm
-
-  /usr/local/bin/keadm init --advertise-address=$MASTER_IP --profile version=$KUBEEDGE_VERSION --set cloudCore.service.enable=false --kube-config=$KUBECONFIG --force
+  /usr/local/bin/keadm init --advertise-address=$MASTER_IP --profile version=$CLOUD_EDGE_VERSION --set cloudCore.service.enable=false --kube-config=$KUBECONFIG --force
 
   # ensure tokensecret is generated
   while true; do
@@ -94,7 +100,7 @@ function start_kubeedge() {
   cd $KUBEEDGE_ROOT
   export TOKEN=$(sudo /usr/local/bin/keadm gettoken --kube-config=$KUBECONFIG)
   sudo systemctl set-environment CHECK_EDGECORE_ENVIRONMENT="false"
-  sudo -E CHECK_EDGECORE_ENVIRONMENT="false" /usr/local/bin/edgeadm join --token=$TOKEN --cloudcore-ipport=$MASTER_IP:10000 --edgenode-name=edge-node --kubeedge-version=$EDGECORE_VRRSION
+  sudo /usr/local/bin/edgeadm join --token=$TOKEN --cloudcore-ipport=$MASTER_IP:10000 --edgenode-name=edge-node --kubeedge-version=$KUBEEDGE_VERSION
 
   # ensure edgenode is ready
   while true; do
@@ -126,7 +132,6 @@ function run_test() {
 
 set -Ee
 trap cleanup EXIT
-#trap cleanup ERR
 
 echo -e "\nBuilding ginkgo test cases..."
 build_ginkgo
@@ -136,8 +141,11 @@ export KUBECONFIG=$HOME/.kube/config
 echo -e "\nPreparing cluster..."
 prepare_cluster
 
-echo -e "\nGet cloudcore image..."
+echo -e "\nBuilding keadm image..."
 build_image
+
+echo -e "\nGet cloudcore image..."
+get_cloudcore_image
 
 echo -e "\nGet edgecore image..."
 get_edgecore_image

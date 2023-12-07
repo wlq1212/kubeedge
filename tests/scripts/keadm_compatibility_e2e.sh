@@ -62,9 +62,10 @@ function build_image() {
 
 function get_cloudcore_image() {
    docker pull kubeedge/cloudcore:$CLOUD_EDGE_VERSION
-   docker save kubeedge/cloudcore:$CLOUDCORE_VERSION > cloudcore.tar
-   sudo ctr -n=k8s.io image import cloudcore.tar
-   kind load docker-image kubeedge/cloudcore:$CLOUDCORE_VERSION --name test
+#   docker save kubeedge/cloudcore:$CLOUDCORE_VERSION > cloudcore.tar
+#   sudo ctr -n=k8s.io image import cloudcore.tar
+   kind load docker-image docker.io/kubeedge/cloudcore:$CLOUDCORE_VERSION --name test
+
 
    set +e
    docker rmi $(docker images -f "dangling=true" -q)

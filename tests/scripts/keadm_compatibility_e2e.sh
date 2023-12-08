@@ -62,8 +62,6 @@ function build_image() {
 function get_cloudcore_image() {
    docker pull kubeedge/cloudcore:$CLOUD_EDGE_VERSION
    docker tag kubeedge/cloudcore:$CLOUD_EDGE_VERSION docker.io/kubeedge/cloudcore:$CLOUD_EDGE_VERSION
-#   docker save kubeedge/cloudcore:$CLOUD_EDGE_VERSION > cloudcore.tar
-#   sudo ctr -n=k8s.io image import cloudcore.tar
    kind load docker-image docker.io/kubeedge/cloudcore:$CLOUD_EDGE_VERSION --name test
 
    set +e
@@ -100,7 +98,7 @@ function start_kubeedge() {
   export TOKEN=$(sudo /usr/local/bin/keadm gettoken --kube-config=$KUBECONFIG)
   sudo systemctl set-environment CHECK_EDGECORE_ENVIRONMENT="false"
   sudo /usr/local/bin/edgeadm join --token=$TOKEN --cloudcore-ipport=$MASTER_IP:10000 --edgenode-name=edge-node --kubeedge-version=$KUBEEDGE_VERSION
-  
+
   # ensure edgenode is ready
   while true; do
       sleep 3

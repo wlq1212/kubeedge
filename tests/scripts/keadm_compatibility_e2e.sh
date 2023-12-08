@@ -61,7 +61,7 @@ function build_image() {
 
 function get_cloudcore_image() {
    docker pull kubeedge/cloudcore:$CLOUD_EDGE_VERSION
-   docker tag kubeedge/cloudcore:$CLOUD_EDGE_VERSION docker.io/kubeedge/cloudcore:$CLOUD_EDGE_VERSIO
+   docker tag kubeedge/cloudcore:$CLOUD_EDGE_VERSION docker.io/kubeedge/cloudcore:$CLOUD_EDGE_VERSION
    kind load docker-image docker.io/kubeedge/cloudcore:$CLOUD_EDGE_VERSION --name test
 
    set +e

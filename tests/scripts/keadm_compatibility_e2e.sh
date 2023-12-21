@@ -144,9 +144,6 @@ build_image
 echo -e "\nGet cloudcore image..."
 get_cloudcore_image
 
-echo -e "\nGet edgecore image..."
-get_edgecore_image
-
 install_cni_plugins
 
 echo -e "\nStarting kubeedge..."
